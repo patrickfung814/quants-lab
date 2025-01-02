@@ -591,3 +591,42 @@ class TimescaleClient:
         Converts a candle interval string to a pandas frequency string.
         """
         return INTERVAL_MAPPING.get(interval, 'T')
+
+    async def create_funding_rates_table(self, table_name: str):
+        async with self.pool.acquire() as conn:
+            await conn.execute(f'''
+                CREATE TABLE IF NOT EXISTS {table_name} (
+                    id SERIAL PRIMARY KEY,
+                    open DOUBLE PRECISION,
+                    high DOUBLE PRECISION,
+                    low DOUBLE PRECISION,
+                    close DOUBLE PRECISION,
+                    timestamp TIMESTAMPTZ NOT NULL,
+                    created_at TIMESTAMPTZ NOT NULL,
+                    UNIQUE (timestamp)
+                );
+            ''')
+
+    async def append_funding_rates(self, table_name: str, funding_rates: List[Tuple]):
+        async with self.pool.acquire() as conn:
+            await conn.executemany(f'''
+                INSERT INTO {table_name} 
+                (open, high, low, close, timestamp, created_at)
+                VALUES ($1, $2, $3, $4, $5, $6)
+                ON CONFLICT (timestamp) DO NOTHING
+            ''', funding_rates)
+
+    async def delete_funding_rates(self, connector_name: str, trading_pair: str, timestamp: float):
+        async with self.pool.acquire() as conn:
+            await conn.execute(f'''
+                DELETE FROM funding_rates_{connector_name.lower()}
+                WHERE timestamp < $1
+            ''', datetime.fromtimestamp(timestamp))
+
+    async def get_last_timestamp(self, table_name: str, trading_pair: str) -> Optional[datetime]:
+        query = f"""
+            SELECT MAX(timestamp)
+            FROM {table_name}
+        """
+        result = await self.pool.fetchval(query)
+        return result
