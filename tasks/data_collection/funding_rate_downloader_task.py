@@ -56,7 +56,7 @@ class FundingRateDownloaderTask(BaseTask):
                     "interval": "1h"
                 }
                 if last_timestamp:
-                    # Convert to milliseconds for API
+                    
                     params["start"] = int(last_timestamp.timestamp() * 1000)
 
                 url = f"https://open-api-v3.coinglass.com/api/futures/fundingRate/ohlc-history"
@@ -90,13 +90,13 @@ class FundingRateDownloaderTask(BaseTask):
                     funding_rates=funding_data
                 )
 
-                # Delete old data
-                cutoff_timestamp = (datetime.now() - timedelta(days=self.days_data_retention)).timestamp()
-                await timescale_client.delete_funding_rates(
-                    connector_name=self.connector_name,
-                    trading_pair=trading_pair,
-                    timestamp=cutoff_timestamp
-                )
+                
+                # cutoff_timestamp = (datetime.now() - timedelta(days=self.days_data_retention)).timestamp()
+                # await timescale_client.delete_funding_rates(
+                #     connector_name=self.connector_name,
+                #     trading_pair=trading_pair,
+                #     timestamp=cutoff_timestamp
+                # )
 
                 logging.info(f"{now} - Inserted funding rates for {trading_pair}")
                 await asyncio.sleep(1)  # Rate limiting
